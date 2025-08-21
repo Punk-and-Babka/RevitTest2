@@ -16,16 +16,20 @@ namespace RevitTest2.ViewModel
     {
         private readonly UIDocument _uiDoc;
         private readonly Document _doc;
+        private readonly CreateWallsEventHandler _eventHandler;
+        private readonly ExternalEvent _externalEvent;
 
         public ObservableCollection<Room> SelectedRooms { get; } = new ObservableCollection<Room>();
 
         public RelayCommand SelectRoomsCommand { get; }
         public RelayCommand CreateWallsCommand { get; }
 
-        public MainViewModel(UIDocument uiDoc)
+        public MainViewModel(UIDocument uiDoc, CreateWallsEventHandler eventHandler, ExternalEvent externalEvent)
         {
             _uiDoc = uiDoc;
             _doc = uiDoc.Document;
+            _eventHandler = eventHandler;
+            _externalEvent = externalEvent;
 
             SelectRoomsCommand = new RelayCommand(OnSelectRooms);
             CreateWallsCommand = new RelayCommand(OnCreateWalls, CanCreateWalls);
@@ -59,13 +63,28 @@ namespace RevitTest2.ViewModel
 
         private void OnCreateWalls(object parameter)
         {
-            // Здесь будет логика создания стен
-            MessageBox.Show("позже");
+            if (!SelectedRooms.Any())
+            {
+                MessageBox.Show("Не выбрано ни одного помещения");
+                return;
+            }
+
+            try
+            {
+                // Устанавливаем данные для обработчика
+                _eventHandler.SetData(_doc, SelectedRooms.ToList());
+
+                // Запускаем выполнение в основном потоке Revit
+                _externalEvent.Raise();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при создании стен: {ex.Message}");
+            }
         }
 
         private bool CanCreateWalls(object parameter)
         {
-            // Разрешаем создание стен только если есть выбранные помещения
             return SelectedRooms.Any();
         }
     }
