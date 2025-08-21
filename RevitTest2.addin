@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Command">
+    <Assembly> </Assembly>
+    <ClientId> </ClientId>
+    <FullClassName>RevitTest2.HelloWorld</FullClassName>
+    <Text>Тестовый плагин</Text>
+    <Vendor>Myname</Vendor>
+    <Description>Простой тестовый плагин для проверки</Description>
+  </AddIn>
+</RevitAddIns>
