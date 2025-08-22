@@ -29,11 +29,9 @@ namespace RevitTest2.ViewModel
             {
                 if (SetField(ref _selectAll, value))
                 {
-                    // При изменении флажка "Выбрать все" обновляем все элементы
-                    foreach (var roomItem in AllRooms)
-                    {
-                        roomItem.IsSelected = value;
-                    }
+                    // Уведомляем об изменении, но не меняем элементы здесь
+                    // Это предотвратит циклическое обновление
+                    OnPropertyChanged(nameof(SelectAll));
                 }
             }
         }
@@ -51,6 +49,18 @@ namespace RevitTest2.ViewModel
 
             // Загружаем все помещения при инициализации
             LoadAllRooms();
+
+            // Подписываемся на изменения выбора
+            foreach (var roomItem in AllRooms)
+            {
+                roomItem.PropertyChanged += (s, e) =>
+                {
+                    if (e.PropertyName == nameof(RoomItem.IsSelected))
+                    {
+                        UpdateSelectAllProperty();
+                    }
+                };
+            }
 
             SelectAllCommand = new RelayCommand(OnSelectAll);
             DeselectAllCommand = new RelayCommand(OnDeselectAll);
@@ -75,12 +85,39 @@ namespace RevitTest2.ViewModel
 
         private void OnSelectAll(object parameter)
         {
+            foreach (var roomItem in AllRooms)
+            {
+                roomItem.IsSelected = true;
+            }
             SelectAll = true;
         }
 
         private void OnDeselectAll(object parameter)
         {
+            foreach (var roomItem in AllRooms)
+            {
+                roomItem.IsSelected = false;
+            }
             SelectAll = false;
+        }
+        private void UpdateSelectAllProperty()
+        {
+            if (!AllRooms.Any())
+            {
+                SelectAll = false;
+                return;
+            }
+
+            // Проверяем, все ли элементы выбраны
+            bool allSelected = AllRooms.All(item => item.IsSelected);
+            bool noneSelected = AllRooms.All(item => !item.IsSelected);
+
+            // Обновляем свойство SelectAll
+            if (allSelected)
+                SelectAll = true;
+            else if (noneSelected)
+                SelectAll = false;
+            // Если смешанное состояние, оставляем как есть
         }
 
         private void OnCreateWalls(object parameter)

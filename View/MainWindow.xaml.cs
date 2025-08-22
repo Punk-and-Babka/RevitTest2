@@ -24,6 +24,5 @@ namespace RevitTest2.View
         {
             InitializeComponent();
         }
-
     }
 }
