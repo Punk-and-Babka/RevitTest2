@@ -19,9 +19,27 @@ namespace RevitTest2.ViewModel
         private readonly CreateWallsEventHandler _eventHandler;
         private readonly ExternalEvent _externalEvent;
 
-        public ObservableCollection<Room> SelectedRooms { get; } = new ObservableCollection<Room>();
+        public ObservableCollection<RoomItem> AllRooms { get; } = new ObservableCollection<RoomItem>();
 
-        public RelayCommand SelectRoomsCommand { get; }
+        private bool _selectAll;
+        public bool SelectAll
+        {
+            get => _selectAll;
+            set
+            {
+                if (SetField(ref _selectAll, value))
+                {
+                    // При изменении флажка "Выбрать все" обновляем все элементы
+                    foreach (var roomItem in AllRooms)
+                    {
+                        roomItem.IsSelected = value;
+                    }
+                }
+            }
+        }
+
+        public RelayCommand SelectAllCommand { get; }
+        public RelayCommand DeselectAllCommand { get; }
         public RelayCommand CreateWallsCommand { get; }
 
         public MainViewModel(UIDocument uiDoc, CreateWallsEventHandler eventHandler, ExternalEvent externalEvent)
@@ -31,39 +49,49 @@ namespace RevitTest2.ViewModel
             _eventHandler = eventHandler;
             _externalEvent = externalEvent;
 
-            SelectRoomsCommand = new RelayCommand(OnSelectRooms);
+            // Загружаем все помещения при инициализации
+            LoadAllRooms();
+
+            SelectAllCommand = new RelayCommand(OnSelectAll);
+            DeselectAllCommand = new RelayCommand(OnDeselectAll);
             CreateWallsCommand = new RelayCommand(OnCreateWalls, CanCreateWalls);
         }
 
-        private void OnSelectRooms(object parameter)
+        private void LoadAllRooms()
         {
-            SelectedRooms.Clear();
+            AllRooms.Clear();
 
-            try
-            {
-                var pickedRefs = _uiDoc.Selection.PickObjects(
-                    ObjectType.Element,
-                    new RoomFilter(),
-                    "Выберите помещения"
-                );
+            // Получаем все помещения в проекте
+            var rooms = new FilteredElementCollector(_doc)
+                .OfClass(typeof(SpatialElement))
+                .OfType<Room>()
+                .Where(room => room.Area > 0); // Исключаем помещения с нулевой площадью
 
-                foreach (Reference reference in pickedRefs)
-                {
-                    if (_doc.GetElement(reference) is Room room)
-                    {
-                        SelectedRooms.Add(room);
-                    }
-                }
-            }
-            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            foreach (var room in rooms)
             {
-                // Пользователь отменил операцию выбора
+                AllRooms.Add(new RoomItem(room));
             }
+        }
+
+        private void OnSelectAll(object parameter)
+        {
+            SelectAll = true;
+        }
+
+        private void OnDeselectAll(object parameter)
+        {
+            SelectAll = false;
         }
 
         private void OnCreateWalls(object parameter)
         {
-            if (!SelectedRooms.Any())
+            // Получаем выбранные помещения
+            var selectedRooms = AllRooms
+                .Where(item => item.IsSelected)
+                .Select(item => item.Room)
+                .ToList();
+
+            if (!selectedRooms.Any())
             {
                 MessageBox.Show("Не выбрано ни одного помещения");
                 return;
@@ -72,7 +100,7 @@ namespace RevitTest2.ViewModel
             try
             {
                 // Устанавливаем данные для обработчика
-                _eventHandler.SetData(_doc, SelectedRooms.ToList());
+                _eventHandler.SetData(_doc, selectedRooms);
 
                 // Запускаем выполнение в основном потоке Revit
                 _externalEvent.Raise();
@@ -85,7 +113,8 @@ namespace RevitTest2.ViewModel
 
         private bool CanCreateWalls(object parameter)
         {
-            return SelectedRooms.Any();
+            // Разрешаем создание стен, если есть выбранные помещения
+            return AllRooms.Any(item => item.IsSelected);
         }
     }
 }
