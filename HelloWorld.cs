@@ -27,7 +27,6 @@ namespace RevitTest2
             {
                 var uiDoc = commandData.Application.ActiveUIDocument;
 
-                // Инициализируем обработчики событий (если они еще не созданы)
                 if (_eventHandler == null)
                 {
                     _eventHandler = new CreateWallsEventHandler();
